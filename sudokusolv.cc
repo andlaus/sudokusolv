@@ -71,7 +71,7 @@ public:
         }
     }
 
-        uint8_t operator()(int x, int y) const
+    uint8_t operator()(int x, int y) const
     {
         return _board[x][y];
     }
@@ -83,40 +83,56 @@ private:
     uint16_t _blockSet[9];
 };
 
-bool solve(SudokuBoard& board, int print = 0)
+// return 0 if the board is not solvable, 1 if it is uniquely solvable and 2 if more than
+// one solution exists
+int solve(SudokuBoard& board, int maxSols = 1)
 {
-    for (int i = 0; i < 9; ++i) {
-        for (int j = 0; j < 9; ++j) {
-            if (board(i, j) != 0) {
-                continue;
-            }
-
-            for (int v = 1; v <= 9; ++ v) {
-                if (!board.set(v, i, j))
-                    // one of the rules is immediately broken. try another number
-                    continue;
-
-                if (solve(board))
-                    return true;
-
-                board.unset(v, i, j);
-            }
-
-            // if we cannot place any number on the tile that leads to a solution, we
-            // give up
-            return false;
+    // determine the "first" free position on the board
+    int i, j;
+    for (i = 0; i < 9; ++i) {
+        for (j = 0; j < 9; ++j) {
+            if (board(i, j) == 0)
+                goto pos_found;
         }
     }
 
-    return true;
+    return 1; // all fields are occupied!
+
+pos_found:
+
+    int numFound = 0;
+
+    // try to set one number on that position
+    for (int v = 1; v <= 9; ++ v) {
+        if (!board.set(v, i, j))
+            // one of the rules is immediately broken by setting the current number. try
+            // another one
+            continue;
+
+        // recusively check if the board is still solvable with the current number set
+        numFound += solve(board, maxSols);
+        if (numFound >= maxSols)
+            return numFound;
+
+        board.unset(v, i, j);
+    }
+
+    return numFound;
 }
 
 int main()
 {
     SudokuBoard board;
 
-    if (solve(board, /*print=*/true)) {
-        std::cout << "solvable:\n";
+    const int maxSols = 1000;
+    int numSols = solve(board, maxSols);
+    if (numSols > 0) {
+        if (numSols >= maxSols)
+            std::cout << "solvable, at least " << numSols << " solutions.\n";
+        else
+            std::cout << "solvable, " << numSols << " solutions.\n";
+        std::cout << "First found solution:\n";
+        solve(board, /*maxSols=*/1);
         board.print();
     }
     else
