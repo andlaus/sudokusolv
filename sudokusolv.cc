@@ -1,9 +1,23 @@
 #include <cstdint>
 #include <iostream>
+#include <iomanip>
 
 class SudokuBoard
 {
 public:
+    SudokuBoard()
+    {
+        for (int i=0; i < 9; ++i) {
+            for (int j=0; j < 9; ++j) {
+                _board[i][j] = 0;
+            }
+
+            _horSet[i] = 0;
+            _vertSet[i] = 0;
+            _blockSet[i] = 0;
+        }
+    }
+
     bool set(uint8_t num, uint8_t x, uint8_t y)
     {
         int mask = 1 << (num - 1);
@@ -40,7 +54,24 @@ public:
         _blockSet[k] &= mask;
     }
 
-    uint8_t operator()(int x, int y) const
+    void print() const
+    {
+        std::cout << "\n";
+        std::cout << "+---+---+---+---+---+---+---+---+---+\n";
+        for (int i = 0; i < 9; ++i) {
+            std::cout << "|";
+            for (int j = 0; j < 9; ++j) {
+                if (_board[i][j] == 0)
+                    std::cout << "   |";
+                else
+                    std::cout << " " << static_cast<char>('0'+ _board[i][j]) << " |";
+            }
+            std::cout << "\n";
+            std::cout << "+---+---+---+---+---+---+---+---+---+\n";
+        }
+    }
+
+        uint8_t operator()(int x, int y) const
     {
         return _board[x][y];
     }
@@ -56,36 +87,38 @@ bool solve(SudokuBoard& board, int print = 0)
 {
     for (int i = 0; i < 9; ++i) {
         for (int j = 0; j < 9; ++j) {
-            if (print)
-                std::cout << "testing ("<<i<<", "<<j<<")\n";
             if (board(i, j) != 0) {
-                std::cout << "cont\n";
                 continue;
             }
 
-            for (int v=1; v <= 9; ++ v) {
-                if (!board.set(v, i, j)) {
-                    board.unset(v, i, j);
+            for (int v = 1; v <= 9; ++ v) {
+                if (!board.set(v, i, j))
+                    // one of the rules is immediately broken. try another number
                     continue;
-                }
 
                 if (solve(board))
                     return true;
 
                 board.unset(v, i, j);
             }
+
+            // if we cannot place any number on the tile that leads to a solution, we
+            // give up
+            return false;
         }
     }
 
-    return false;
+    return true;
 }
 
 int main()
 {
     SudokuBoard board;
 
-    if (solve(board, /*print=*/true))
-        std::cout << "solvable\n";
+    if (solve(board, /*print=*/true)) {
+        std::cout << "solvable:\n";
+        board.print();
+    }
     else
         std::cout << "not solvable\n";
 
