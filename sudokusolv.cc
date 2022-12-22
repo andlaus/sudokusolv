@@ -158,10 +158,15 @@ private:
     uint16_t _blockSet[9];
 };
 
+void findChallenge(SudokuBoard& pattern)
+{
+}
+
 int main()
 {
 #define SEL 2
 #if SEL == 0
+    // blank
     SudokuBoard board({
             {0,0,0, 0,0,0, 0,0,0},
             {0,0,0, 0,0,0, 0,0,0},
@@ -204,6 +209,22 @@ int main()
             {0,0,6, 2,1,0, 0,0,0},
             {8,1,7, 0,6,0, 0,0,2},
             {4,0,0, 7,0,0, 8,6,1},
+                       });
+#elif SEL == 3
+    // "buyacouch" challenge
+    int x = 0xa;
+    SudokuBoard board({
+            {x,x,0, x,0,x, x,0,x},
+            {x,x,x, x,x,x, 0,x,0},
+            {x,x,x, x,x,x, 0,x,0},
+
+            {0,x,0, x,x,x, x,x,x},
+            {x,x,x, x,0,0, x,0,x},
+            {x,0,x, x,x,x, x,x,x},
+
+            {x,0,x, x,x,x, x,0,x},
+            {x,0,x, x,0,0, x,x,x},
+            {x,x,x, x,x,x, x,0,x},
                        });
 #else
     #error "no initial board selected"
