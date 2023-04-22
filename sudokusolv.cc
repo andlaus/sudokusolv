@@ -1,8 +1,11 @@
 // -*- mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
 // vi: set et ts=4 sw=4 sts=4:
+#include <algorithm>
+#include <array>
 #include <cstdint>
 #include <iostream>
 #include <iomanip>
+#include <random>
 
 class SudokuBoard
 {
@@ -27,38 +30,45 @@ public:
 
     bool set(uint8_t num, uint8_t x, uint8_t y)
     {
-        int mask = 1 << (num - 1);
+        if (num > 0 && num < 10) {
+            int mask = 1 << (num - 1);
 
-        // horizontal line
-        if (_horSet[y] & mask)
-            return false;
-        // vertical line
-        else if (_vertSet[x] & mask)
-            return false;
+            // horizontal line
+            if (_horSet[y] & mask)
+                return false;
+            // vertical line
+            else if (_vertSet[x] & mask)
+                return false;
 
-        // 3x3 block
-        int k = (x/3) + (y/3)*3;
-        if (_blockSet[k] & mask)
-            return false;
+            // 3x3 block
+            int k = (x/3) + (y/3)*3;
+            if (_blockSet[k] & mask)
+                return false;
 
+            _horSet[y] |= mask;
+            _vertSet[x] |= mask;
+            _blockSet[k] |= mask;
+        }
         _board[x][y] = num;
-        _horSet[y] |= mask;
-        _vertSet[x] |= mask;
-        _blockSet[k] |= mask;
 
         return true;
     }
 
-    void unset(uint8_t num, uint8_t x, uint8_t y)
+    void unset(uint8_t new_val, uint8_t x, uint8_t y)
     {
-        int mask = ~(1 << (num - 1));
+        uint8_t cur_val = _board[x][y];
 
-        int k = (x/3) + (y/3)*3;
+        if (cur_val > 0 && cur_val < 10) {
+            int mask = ~(1 << (cur_val - 1));
 
-        _board[x][y] = 0;
-        _horSet[y] &= mask;
-        _vertSet[x] &= mask;
-        _blockSet[k] &= mask;
+            int k = (x/3) + (y/3)*3;
+
+            _horSet[y] &= mask;
+            _vertSet[x] &= mask;
+            _blockSet[k] &= mask;
+        }
+
+        _board[x][y] = new_val;
     }
 
     void print() const
@@ -72,6 +82,8 @@ public:
                     sep = '#';
                 if (_board[i][j] == 0)
                     std::cout << "   " << sep;
+                else if (_board[i][j] > 9)
+                    std::cout << " x " << sep;
                 else
                     std::cout << " " << static_cast<char>('0'+ _board[i][j]) << " " << sep;
             }
@@ -141,15 +153,18 @@ private:
 
     void _set(uint8_t num, uint8_t x, uint8_t y)
     {
-        int mask = 1 << (num - 1);
+        if (num > 0 && num < 10) {
+            int mask = 1 << (num - 1);
 
-        // 3x3 block
-        int k = (x/3) + (y/3)*3;
+            // 3x3 block
+            int k = (x/3) + (y/3)*3;
+
+            _horSet[y] |= mask;
+            _vertSet[x] |= mask;
+            _blockSet[k] |= mask;
+        }
 
         _board[x][y] = num;
-        _horSet[y] |= mask;
-        _vertSet[x] |= mask;
-        _blockSet[k] |= mask;
     }
 
     uint8_t _board[9][9];
@@ -158,13 +173,58 @@ private:
     uint16_t _blockSet[9];
 };
 
-void findChallenge(SudokuBoard& pattern)
+// create a random sequence containing all letters from 1 to 9
+std::array<std::array<uint8_t, 9>, 1000> shuffles;
+
+bool findChallenge(SudokuBoard& pattern)
 {
+    const auto& shuffle = shuffles[rand()%shuffles.size()];
+    // fill all "wildcards" (i.e. all positions which need to be initially set by
+    // something but where it does not matter by what)
+    for (int i = 0; i < 9; ++i) {
+        for (int j = 0; j < 9; j++) {
+            if (pattern(i, j) > 9) {
+                for (int k = 0; k < 9; ++ k) {
+                    if (pattern.set(shuffle[k] + 1, i, j)) {
+                        if (findChallenge(pattern))
+                            return true;
+                        pattern.unset(10, i, j);
+                    }
+                }
+                // cannot chose a valid number for the wildcard at (i, j)
+                return false;
+            }
+        }
+    }
+
+    // no "wildcards" in the input pattern. Make sure that the pattern is uniquely solvable
+    SudokuBoard tester = pattern;
+    if (tester.solve()) {
+        pattern.print();
+        return true;
+    }
+
+    return false;
 }
 
 int main()
 {
-#define SEL 2
+    // initialize the random shuffles. this is a pretty slow operation, so we do not do
+    // initialize shuffles inside the solver
+    for (auto& shuffle: shuffles) {
+        for (unsigned i = 0; i < 9; ++i)
+            shuffle[i] = i;
+        std::random_device rd;
+        std::mt19937 g(rd());
+        //std::shuffle(shuffle.begin(), shuffle.end(), g);
+        std::cout << "shuffle:\n";
+        for (unsigned i = 0; i < 9; ++i)
+            std::cout << (int) shuffle[i] << " ";
+        std::cout << "\n";
+    }
+
+
+#define SEL 3
 #if SEL == 0
     // blank
     SudokuBoard board({
@@ -212,26 +272,32 @@ int main()
                        });
 #elif SEL == 3
     // "buyacouch" challenge
-    int x = 0xa;
+    uint8_t x = 0xa;
     SudokuBoard board({
-            {x,x,0, x,0,x, x,0,x},
-            {x,x,x, x,x,x, 0,x,0},
-            {x,x,x, x,x,x, 0,x,0},
+            {x,0,0, x,0,x, x,0,x},
+            {x,x,0, x,0,x, 0,x,0},
+            {x,x,0, x,x,x, 0,x,0},
 
-            {0,x,0, x,x,x, x,x,x},
+            {0,x,0, x,x,0, x,x,x},
             {x,x,x, x,0,0, x,0,x},
-            {x,0,x, x,x,x, x,x,x},
+            {x,0,x, x,x,0, x,x,x},
 
-            {x,0,x, x,x,x, x,0,x},
+            {x,0,x, x,x,0, x,0,x},
             {x,0,x, x,0,0, x,x,x},
-            {x,x,x, x,x,x, x,0,x},
+            {x,x,x, x,x,0, x,0,x},
                        });
 #else
     #error "no initial board selected"
 #endif
 
-    auto origBoard = board;
+#if 1
+    std::cout << "pattern:\n";
+    board.print();
+    std::cout << "challenge with unique solution:\n";
+    findChallenge(board);
+#else
     const int nMax = 1000;
+    auto origBoard = board;
     int n = board.solve(nMax);
     if (n > 0) {
         if (n == 1)
@@ -249,6 +315,7 @@ int main()
     }
     else
         std::cout << "not solvable\n";
+#endif
 
     return 0;
 }
