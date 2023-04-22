@@ -45,8 +45,8 @@ public:
                     // check if the number can be set horizontally, vertically as well as
                     // in the 3x3 block
                     int blockIdx = (rowIdx/3) + (colIdx/3)*3;
-                    if (!(_horSet[colIdx] & mask) &&
-                        !(_vertSet[rowIdx] & mask) &&
+                    if (!(_verticalSet[colIdx] & mask) &&
+                        !(_horizontalSet[rowIdx] & mask) &&
                         !(_blockSet[blockIdx] & mask))
                         // number can be placed in the current field
                         break;
@@ -68,10 +68,10 @@ public:
             int mask = 1 << (num - 1);
 
             // horizontal line
-            if (_horSet[colIdx] & mask)
+            if (_verticalSet[colIdx] & mask)
                 return false;
             // vertical line
-            else if (_vertSet[rowIdx] & mask)
+            else if (_horizontalSet[rowIdx] & mask)
                 return false;
 
             // 3x3 block
@@ -79,8 +79,8 @@ public:
             if (_blockSet[blockIdx] & mask)
                 return false;
 
-            _horSet[colIdx] |= mask;
-            _vertSet[rowIdx] |= mask;
+            _verticalSet[colIdx] |= mask;
+            _horizontalSet[rowIdx] |= mask;
             _blockSet[blockIdx] |= mask;
         }
         _board[rowIdx][colIdx] = num;
@@ -97,8 +97,8 @@ public:
 
             int blockIdx = (rowIdx/3) + (colIdx/3)*3;
 
-            _horSet[colIdx] &= mask;
-            _vertSet[rowIdx] &= mask;
+            _verticalSet[colIdx] &= mask;
+            _horizontalSet[rowIdx] &= mask;
             _blockSet[blockIdx] &= mask;
         }
 
@@ -187,8 +187,8 @@ private:
                 _board[i][j] = 0;
             }
 
-            _horSet[i] = 0;
-            _vertSet[i] = 0;
+            _verticalSet[i] = 0;
+            _horizontalSet[i] = 0;
             _blockSet[i] = 0;
         }
     }
@@ -201,8 +201,8 @@ private:
             // 3x3 block
             int blockIdx = (rowIdx/3) + (colIdx/3)*3;
 
-            _horSet[colIdx] |= mask;
-            _vertSet[rowIdx] |= mask;
+            _verticalSet[colIdx] |= mask;
+            _horizontalSet[rowIdx] |= mask;
             _blockSet[blockIdx] |= mask;
         }
 
@@ -210,8 +210,8 @@ private:
     }
 
     uint8_t _board[9][9];
-    uint16_t _horSet[9];
-    uint16_t _vertSet[9];
+    uint16_t _verticalSet[9];
+    uint16_t _horizontalSet[9];
     uint16_t _blockSet[9];
 };
 
@@ -336,7 +336,7 @@ int main()
                        });
 #elif SEL == 3
     // "buyacouch" challenge
-    uint8_t x = 0xa;
+    uint8_t x = 10;
     SudokuBoard board({
             {x,0,0, x,0,x, x,0,x},
             {x,x,0, x,0,x, 0,x,0},
