@@ -7,8 +7,8 @@ TARGET=sudokusolv
 
 CXX=g++
 CXXFLAGS=-std=c++17 -Wall -O3 -march=native
-#CXXFLAGS=-std=c++14 -Wall -g -Og
-#CXXFLAGS=-std=c++14 -Wall -g
+#CXXFLAGS=-std=c++17 -Wall -g -Og
+#CXXFLAGS=-std=c++17 -Wall -g
 
 LD=g++
 LDFLAGS=-lm

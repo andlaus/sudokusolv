@@ -134,9 +134,10 @@ public:
         return _board[x][y];
     }
 
-    // return 0 if the board is not solvable, 1 if it is uniquely solvable and 2 if more than
-    // one solution exists
-    int solve(int maxSols = 1)
+    // return 0 if the board is not solvable, and a lower limit of the number of
+    // solutions if there are some. `nSolsCutoff`, specifies the number of solutions
+    // after which we don't care about additional ones anymore...
+    int solve(int nSolsCutoff = 1)
     {
         // determine the "first" free position on the board
         int i, j;
@@ -168,8 +169,8 @@ public:
             }
 
             // recusively check if the board is still solvable with the current number set
-            numFound += solve(maxSols);
-            if (numFound >= maxSols)
+            numFound += solve(nSolsCutoff);
+            if (numFound >= nSolsCutoff)
                 return numFound;
 
             unset(v, i, j);
@@ -219,8 +220,35 @@ std::array<std::array<uint8_t, 9>, 1000> shuffles;
 
 bool findChallenge(SudokuBoard& pattern)
 {
+    // first, ensure that the "fixed" part of the pattern represents a solvable board. if
+    // it isn't there's not much point in specifying wild cards
     if (pattern.isAnyDirectlyImpossible())
         return false;
+
+    SudokuBoard tester(pattern);
+    for (int i = 0; i < 9; ++i) {
+        for (int j = 0; j < 9; j++) {
+            if (tester(i, j) > 9)
+                tester.set(0, i, j);
+        }
+    }
+
+    int minNumSol = tester.solve(2);
+    if (minNumSol == 0)
+        return false;
+    else if (minNumSol == 1) {
+        // the solution is already unique. transfer the numbers of the solution to the
+        // remaining wildcards of the pattern and be done with it
+        for (int i = 0; i < 9; ++i) {
+            for (int j = 0; j < 9; j++) {
+                if (pattern(i, j) > 9) {
+                    pattern.set(tester(i,j), i,j);
+                }
+            }
+        }
+        pattern.print();
+        return true;
+    }
 
     const auto& shuffle = shuffles[rand()%shuffles.size()];
     // fill all "wildcards" (i.e. all positions which need to be initially set by
@@ -239,13 +267,6 @@ bool findChallenge(SudokuBoard& pattern)
                 return false;
             }
         }
-    }
-
-    // no "wildcards" in the input pattern. Make sure that the pattern is uniquely solvable
-    SudokuBoard tester = pattern;
-    if (tester.solve()) {
-        pattern.print();
-        return true;
     }
 
     return false;
