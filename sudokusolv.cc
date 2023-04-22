@@ -105,27 +105,47 @@ public:
         _board[rowIdx][colIdx] = new_val;
     }
 
-    void print() const
+    void print(bool copyAndPastableOutput = false) const
     {
-        std::cout << "+---+---+---+---+---+---+---+---+---+\n";
-        for (int i = 0; i < 9; ++i) {
-            std::cout << "|";
-            for (int j = 0; j < 9; ++j) {
-                char sep = '|';
-                if (j < 8 && (j+1)%3 == 0)
-                    sep = '#';
-                if (_board[i][j] == 0)
-                    std::cout << "   " << sep;
-                else if (_board[i][j] > 9)
-                    std::cout << " x " << sep;
+        if (!copyAndPastableOutput) {
+            std::cout << "+---+---+---+---+---+---+---+---+---+\n";
+            for (int i = 0; i < 9; ++i) {
+                std::cout << "|";
+                for (int j = 0; j < 9; ++j) {
+                    char sep = '|';
+                    if (j < 8 && (j+1)%3 == 0)
+                        sep = '#';
+                    if (_board[i][j] == 0)
+                        std::cout << "   " << sep;
+                    else if (_board[i][j] > 9)
+                        std::cout << " x " << sep;
+                    else
+                        std::cout << " " << static_cast<char>('0'+ _board[i][j]) << " " << sep;
+                }
+                std::cout << "\n";
+                if (i >= 8 || (i+1)%3)
+                    std::cout << "+---+---+---+---+---+---+---+---+---+\n";
                 else
-                    std::cout << " " << static_cast<char>('0'+ _board[i][j]) << " " << sep;
+                    std::cout << "+===+===+===+===+===+===+===+===+===+\n";
             }
-            std::cout << "\n";
-            if (i >= 8 || (i+1)%3)
-                std::cout << "+---+---+---+---+---+---+---+---+---+\n";
-            else
-                std::cout << "+===+===+===+===+===+===+===+===+===+\n";
+        }
+        else {
+            // print the board in a copy-and-pastable way
+            std::cout << "SudokuBoard board({\n";
+            for (int rowIdx = 0; rowIdx < 9; ++ rowIdx) {
+                if (rowIdx > 0 && rowIdx < 8 && rowIdx%3==0)
+                    std::cout << "\n";
+                std::cout << "{";
+                for (int colIdx = 0; colIdx < 9; ++ colIdx) {
+                    if (colIdx > 0 && colIdx < 8 && colIdx%3==0)
+                        std::cout << " ";
+                    std::cout << (int)_board[rowIdx][colIdx];
+                    if (colIdx < 8)
+                        std::cout << ",";
+                }
+                std::cout << "},\n";
+            }
+            std::cout << "});\n";
         }
     }
 
@@ -350,6 +370,21 @@ int main()
             {x,0,x, x,0,0, x,x,x},
             {x,x,x, x,x,0, x,0,x},
                        });
+#elif SEL == 4
+    // possible solution for the "buyacouch" challenge
+    SudokuBoard board({
+            {5,0,0, 1,0,2, 8,0,3},
+            {7,9,0, 8,0,6, 0,1,0},
+            {3,1,0, 7,4,5, 0,9,0},
+
+            {0,7,0, 2,6,0, 3,8,1},
+            {4,2,6, 3,0,0, 7,0,9},
+            {1,0,3, 5,7,0, 6,2,4},
+
+            {6,0,9, 4,8,0, 1,0,2},
+            {8,0,1, 9,0,0, 5,6,7},
+            {2,3,7, 6,5,0, 9,0,8},
+        });
 #else
     #error "no initial board selected"
 #endif
