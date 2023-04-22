@@ -31,9 +31,9 @@ public:
     // returns true iff there is a field which cannot be set directly
     bool isAnyDirectlyImpossible() const
     {
-        for (int x = 0; x < 9; ++x) {
-            for (int y = 0; y < 9; ++y) {
-                if (_board[x][y] > 0 && _board[x][y] < 10)
+        for (int rowIdx = 0; rowIdx < 9; ++rowIdx) {
+            for (int colIdx = 0; colIdx < 9; ++colIdx) {
+                if (_board[rowIdx][colIdx] > 0 && _board[rowIdx][colIdx] < 10)
                     // there already is a fixed number attached to the field
                     continue;
 
@@ -44,10 +44,10 @@ public:
 
                     // check if the number can be set horizontally, vertically as well as
                     // in the 3x3 block
-                    int z = (x/3) + (y/3)*3;
-                    if (!(_horSet[y] & mask) &&
-                        !(_vertSet[x] & mask) &&
-                        !(_blockSet[z] & mask))
+                    int blockIdx = (rowIdx/3) + (colIdx/3)*3;
+                    if (!(_horSet[colIdx] & mask) &&
+                        !(_vertSet[rowIdx] & mask) &&
+                        !(_blockSet[blockIdx] & mask))
                         // number can be placed in the current field
                         break;
                 }
@@ -62,47 +62,47 @@ public:
         return false;
     }
 
-    bool set(uint8_t num, uint8_t x, uint8_t y)
+    bool set(uint8_t num, uint8_t rowIdx, uint8_t colIdx)
     {
         if (num > 0 && num < 10) {
             int mask = 1 << (num - 1);
 
             // horizontal line
-            if (_horSet[y] & mask)
+            if (_horSet[colIdx] & mask)
                 return false;
             // vertical line
-            else if (_vertSet[x] & mask)
+            else if (_vertSet[rowIdx] & mask)
                 return false;
 
             // 3x3 block
-            int k = (x/3) + (y/3)*3;
-            if (_blockSet[k] & mask)
+            int blockIdx = (rowIdx/3) + (colIdx/3)*3;
+            if (_blockSet[blockIdx] & mask)
                 return false;
 
-            _horSet[y] |= mask;
-            _vertSet[x] |= mask;
-            _blockSet[k] |= mask;
+            _horSet[colIdx] |= mask;
+            _vertSet[rowIdx] |= mask;
+            _blockSet[blockIdx] |= mask;
         }
-        _board[x][y] = num;
+        _board[rowIdx][colIdx] = num;
 
         return true;
     }
 
-    void unset(uint8_t new_val, uint8_t x, uint8_t y)
+    void unset(uint8_t new_val, uint8_t rowIdx, uint8_t colIdx)
     {
-        uint8_t cur_val = _board[x][y];
+        uint8_t cur_val = _board[rowIdx][colIdx];
 
         if (cur_val > 0 && cur_val < 10) {
             int mask = ~(1 << (cur_val - 1));
 
-            int k = (x/3) + (y/3)*3;
+            int blockIdx = (rowIdx/3) + (colIdx/3)*3;
 
-            _horSet[y] &= mask;
-            _vertSet[x] &= mask;
-            _blockSet[k] &= mask;
+            _horSet[colIdx] &= mask;
+            _vertSet[rowIdx] &= mask;
+            _blockSet[blockIdx] &= mask;
         }
 
-        _board[x][y] = new_val;
+        _board[rowIdx][colIdx] = new_val;
     }
 
     void print() const
@@ -129,9 +129,9 @@ public:
         }
     }
 
-    uint8_t operator()(int x, int y) const
+    uint8_t operator()(int rowIdx, int colIdx) const
     {
-        return _board[x][y];
+        return _board[rowIdx][colIdx];
     }
 
     // return 0 if the board is not solvable, and a lower limit of the number of
@@ -193,20 +193,20 @@ private:
         }
     }
 
-    void _set(uint8_t num, uint8_t x, uint8_t y)
+    void _set(uint8_t num, uint8_t rowIdx, uint8_t colIdx)
     {
         if (num > 0 && num < 10) {
             int mask = 1 << (num - 1);
 
             // 3x3 block
-            int k = (x/3) + (y/3)*3;
+            int blockIdx = (rowIdx/3) + (colIdx/3)*3;
 
-            _horSet[y] |= mask;
-            _vertSet[x] |= mask;
-            _blockSet[k] |= mask;
+            _horSet[colIdx] |= mask;
+            _vertSet[rowIdx] |= mask;
+            _blockSet[blockIdx] |= mask;
         }
 
-        _board[x][y] = num;
+        _board[rowIdx][colIdx] = num;
     }
 
     uint8_t _board[9][9];
@@ -226,10 +226,10 @@ bool findChallenge(SudokuBoard& pattern)
         return false;
 
     SudokuBoard tester(pattern);
-    for (int i = 0; i < 9; ++i) {
-        for (int j = 0; j < 9; j++) {
-            if (tester(i, j) > 9)
-                tester.set(0, i, j);
+    for (int rowIdx = 0; rowIdx < 9; ++rowIdx) {
+        for (int colIdx = 0; colIdx < 9; colIdx++) {
+            if (tester(rowIdx, colIdx) > 9)
+                tester.set(0, rowIdx, colIdx);
         }
     }
 
@@ -239,10 +239,10 @@ bool findChallenge(SudokuBoard& pattern)
     else if (minNumSol == 1) {
         // the solution is already unique. transfer the numbers of the solution to the
         // remaining wildcards of the pattern and be done with it
-        for (int i = 0; i < 9; ++i) {
-            for (int j = 0; j < 9; j++) {
-                if (pattern(i, j) > 9) {
-                    if (!pattern.set(tester(i,j), i,j)) {
+        for (int rowIdx = 0; rowIdx < 9; ++rowIdx) {
+            for (int colIdx = 0; colIdx < 9; colIdx++) {
+                if (pattern(rowIdx, colIdx) > 9) {
+                    if (!pattern.set(tester(rowIdx, colIdx), rowIdx,colIdx)) {
                         std::cerr << "Hm, something went wrong!\n";
                         std::abort();
                     }
@@ -256,17 +256,17 @@ bool findChallenge(SudokuBoard& pattern)
     const auto& shuffle = shuffles[rand()%shuffles.size()];
     // fill all "wildcards" (i.e. all positions which need to be initially set by
     // something but where it does not matter by what)
-    for (int i = 0; i < 9; ++i) {
-        for (int j = 0; j < 9; j++) {
-            if (pattern(i, j) > 9) {
-                for (int k = 0; k < 9; ++ k) {
-                    if (pattern.set(shuffle[k] + 1, i, j)) {
+    for (int rowIdx = 0; rowIdx < 9; ++rowIdx) {
+        for (int colIdx = 0; colIdx < 9; colIdx++) {
+            if (pattern(rowIdx, colIdx) > 9) {
+                for (int shuffleIdx = 0; shuffleIdx < 9; ++ shuffleIdx) {
+                    if (pattern.set(shuffle[shuffleIdx] + 1, rowIdx, colIdx)) {
                         if (findChallenge(pattern))
                             return true;
-                        pattern.unset(10, i, j);
+                        pattern.unset(10, rowIdx, colIdx);
                     }
                 }
-                // cannot chose a valid number for the wildcard at (i, j)
+                // cannot chose a valid number for the wildcard at (rowIdx, colIdx)
                 return false;
             }
         }
@@ -362,7 +362,7 @@ int main()
 #else
     const int nMax = 1000;
     auto origBoard = board;
-#if 0
+#if 0 // benchmark
     for (int i = 0; i < 100000; ++i) {
         board = origBoard;
         board.solve();
