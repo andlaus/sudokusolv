@@ -28,6 +28,40 @@ public:
         }
     }
 
+    // returns true iff there is a field which cannot be set directly
+    bool isAnyDirectlyImpossible() const
+    {
+        for (int x = 0; x < 9; ++x) {
+            for (int y = 0; y < 9; ++y) {
+                if (_board[x][y] > 0 && _board[x][y] <= 9)
+                    // there already is a fixed number attached to the field
+                    continue;
+
+                // check if it is possible to attach some number to the current field
+                int k;
+                for (k = 1; k < 10; ++k) {
+                    int mask = 1 << (k - 1);
+
+                    // check if the number can be set horizontally, vertically as well as
+                    // in the 3x3 block
+                    int z = (x/3) + (y/3)*3;
+                    if (!(_horSet[y] & mask) &&
+                        !(_vertSet[x] & mask) &&
+                        !(_blockSet[z] & mask))
+                        // number can be placed in the current field
+                        break;
+                }
+
+                // no number could be placed on the current field
+                if (k == 10)
+                    return true;
+            }
+        }
+
+        // a number could be placed on every free field
+        return false;
+    }
+
     bool set(uint8_t num, uint8_t x, uint8_t y)
     {
         if (num > 0 && num < 10) {
@@ -126,6 +160,13 @@ public:
                 // another one
                 continue;
 
+            // one of the rules is broken for another field if the current field is set
+            // to v
+            if (isAnyDirectlyImpossible()) {
+                unset(v, i, j);
+                continue;
+            }
+
             // recusively check if the board is still solvable with the current number set
             numFound += solve(maxSols);
             if (numFound >= maxSols)
@@ -178,6 +219,9 @@ std::array<std::array<uint8_t, 9>, 1000> shuffles;
 
 bool findChallenge(SudokuBoard& pattern)
 {
+    if (pattern.isAnyDirectlyImpossible())
+        return false;
+
     const auto& shuffle = shuffles[rand()%shuffles.size()];
     // fill all "wildcards" (i.e. all positions which need to be initially set by
     // something but where it does not matter by what)
@@ -216,11 +260,7 @@ int main()
             shuffle[i] = i;
         std::random_device rd;
         std::mt19937 g(rd());
-        //std::shuffle(shuffle.begin(), shuffle.end(), g);
-        std::cout << "shuffle:\n";
-        for (unsigned i = 0; i < 9; ++i)
-            std::cout << (int) shuffle[i] << " ";
-        std::cout << "\n";
+        std::shuffle(shuffle.begin(), shuffle.end(), g);
     }
 
 
@@ -298,6 +338,13 @@ int main()
 #else
     const int nMax = 1000;
     auto origBoard = board;
+#if 0
+    for (int i = 0; i < 100000; ++i) {
+        board = origBoard;
+        board.solve();
+    }
+    return 0;
+#endif
     int n = board.solve(nMax);
     if (n > 0) {
         if (n == 1)
