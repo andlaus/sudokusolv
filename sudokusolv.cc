@@ -33,7 +33,7 @@ public:
     {
         for (int x = 0; x < 9; ++x) {
             for (int y = 0; y < 9; ++y) {
-                if (_board[x][y] > 0 && _board[x][y] <= 9)
+                if (_board[x][y] > 0 && _board[x][y] < 10)
                     // there already is a fixed number attached to the field
                     continue;
 
@@ -242,7 +242,10 @@ bool findChallenge(SudokuBoard& pattern)
         for (int i = 0; i < 9; ++i) {
             for (int j = 0; j < 9; j++) {
                 if (pattern(i, j) > 9) {
-                    pattern.set(tester(i,j), i,j);
+                    if (!pattern.set(tester(i,j), i,j)) {
+                        std::cerr << "Hm, something went wrong!\n";
+                        std::abort();
+                    }
                 }
             }
         }
