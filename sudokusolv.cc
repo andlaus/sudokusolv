@@ -48,6 +48,44 @@ public:
         return false;
     }
 
+    // return true if the board adheres to all rules. this method is very slow, but it
+    // uses a naive implementation, so it is more trustworthy than the remaining ones
+    bool isValid() const
+    {
+        for (int rowIdx = 0; rowIdx < 9; ++rowIdx) {
+            for (int colIdx = 0; colIdx < 9; ++colIdx) {
+                uint8_t val = _board[rowIdx][colIdx];
+                if (val < 1 || val > 9) {
+                    // field not assigned to a fixed number yet
+                    continue;
+                }
+
+                // check horizontal and vertical lines
+                for (int i = 0; i < 9; ++i) {
+                    if (i != rowIdx && _board[i][colIdx] == val)
+                        return false;
+                    else if (i != colIdx && _board[rowIdx][i] == val)
+                        return false;
+                }
+
+                // check block
+                int i0 = rowIdx - rowIdx%3;
+                int j0 = colIdx - colIdx%3;
+                for (int i = i0; i < i0+3; ++i) {
+                    for (int j = j0; j < j0+3; ++j) {
+                        if (i == rowIdx && j == colIdx)
+                            continue;
+
+                        if (_board[i][j] == val)
+                            return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
     // returns the set of all possible numbers at a given position
     uint16_t possibleSet(uint8_t rowIdx, uint8_t colIdx) const
     {
@@ -285,6 +323,11 @@ bool findChallenge(SudokuBoard& pattern, bool doPrint = true)
                 }
             }
         }
+        if (!pattern.isValid()) {
+            std::cerr << "oops: 'found' solution is not valid!";
+            return 1;
+        }
+
         if (doPrint)
             pattern.print();
         return true;
@@ -442,6 +485,11 @@ int main()
     if (n > 0) {
         std::cout << "solving board:\n";
         origBoard.print();
+
+        if (!sol.isValid()) {
+            std::cerr << "oops: 'found' solution is not valid!";
+            return 1;
+        }
 
         if (n == 1)
             std::cout << "unique solution found:\n";
