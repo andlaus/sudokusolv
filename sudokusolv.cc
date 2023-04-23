@@ -2,6 +2,7 @@
 // vi: set et ts=4 sw=4 sts=4:
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <iostream>
 #include <iomanip>
@@ -23,7 +24,7 @@ public:
         for (int i=0; i < 9; ++i, ++iIt) {
             auto jIt = iIt->begin();
             for (int j=0; j < 9; ++j, ++jIt) {
-                _set(*jIt, i, j);
+                _assign(*jIt, i, j);
             }
         }
     }
@@ -37,23 +38,8 @@ public:
                     // there already is a fixed number attached to the field
                     continue;
 
-                // check if it is possible to attach some number to the current field
-                int k;
-                for (k = 1; k < 10; ++k) {
-                    int mask = 1 << (k - 1);
-
-                    // check if the number can be set horizontally, vertically as well as
-                    // in the 3x3 block
-                    int blockIdx = (rowIdx/3) + (colIdx/3)*3;
-                    if (!(_verticalSet[colIdx] & mask) &&
-                        !(_horizontalSet[rowIdx] & mask) &&
-                        !(_blockSet[blockIdx] & mask))
-                        // number can be placed in the current field
-                        break;
-                }
-
-                // no number could be placed on the current field
-                if (k == 10)
+                // no number can be placed on the current field
+                if (possibleSet(rowIdx, colIdx) == 0)
                     return true;
             }
         }
@@ -62,23 +48,45 @@ public:
         return false;
     }
 
-    bool set(uint8_t num, uint8_t rowIdx, uint8_t colIdx)
+    // returns the set of all possible numbers at a given position
+    uint16_t possibleSet(uint8_t rowIdx, uint8_t colIdx) const
+    {
+        int blockIdx = (rowIdx/3) + (colIdx/3)*3;
+        return 0x1ff&(~_horizontalSet[rowIdx])&(~_verticalSet[colIdx])&(~_blockSet[blockIdx]);
+    }
+
+    // return true iff each field in a given row, column and block can still be assigned
+    // a number
+    bool scanPosition(uint8_t rowIdx, uint8_t colIdx) const
+    {
+        // scan horizontal and vertical lines
+        for (int i = 0; i < 9; ++i) {
+            if ((_board[rowIdx][i] == 0 && possibleSet(rowIdx, i) == 0) ||
+                (_board[i][colIdx] == 0 && possibleSet(i, colIdx) == 0))
+                return false;
+        }
+
+        // scan 3x3 block
+        int row0Idx = rowIdx - rowIdx%3;
+        int col0Idx = colIdx - colIdx%3;
+        for (int rowIdx = row0Idx; rowIdx < row0Idx+3; ++rowIdx) {
+            for (int colIdx = col0Idx; colIdx < col0Idx+3; ++colIdx) {
+                if ((_board[rowIdx][colIdx] == 0 && possibleSet(rowIdx, colIdx) == 0))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool assign(uint8_t num, uint8_t rowIdx, uint8_t colIdx)
     {
         if (num > 0 && num < 10) {
             int mask = 1 << (num - 1);
-
-            // horizontal line
-            if (_verticalSet[colIdx] & mask)
-                return false;
-            // vertical line
-            else if (_horizontalSet[rowIdx] & mask)
+            if (!(mask&possibleSet(rowIdx, colIdx)))
                 return false;
 
-            // 3x3 block
             int blockIdx = (rowIdx/3) + (colIdx/3)*3;
-            if (_blockSet[blockIdx] & mask)
-                return false;
-
             _verticalSet[colIdx] |= mask;
             _horizontalSet[rowIdx] |= mask;
             _blockSet[blockIdx] |= mask;
@@ -88,7 +96,7 @@ public:
         return true;
     }
 
-    void unset(uint8_t new_val, uint8_t rowIdx, uint8_t colIdx)
+    void unassign(uint8_t new_val, uint8_t rowIdx, uint8_t colIdx)
     {
         uint8_t cur_val = _board[rowIdx][colIdx];
 
@@ -102,6 +110,7 @@ public:
             _blockSet[blockIdx] &= mask;
         }
 
+        assert(new_val < 1 || new_val > 9);
         _board[rowIdx][colIdx] = new_val;
     }
 
@@ -157,16 +166,22 @@ public:
     // return 0 if the board is not solvable, and a lower limit of the number of
     // solutions if there are some. `nSolsCutoff`, specifies the number of solutions
     // after which we don't care about additional ones anymore...
-    int solve(int nSolsCutoff = 1)
+    int solve(int nSolsCutoff = 1, SudokuBoard* solution = nullptr)
     {
         // determine the "first" free position on the board
         int i, j;
+        uint8_t v0;
         for (i = 0; i < 9; ++i) {
             for (j = 0; j < 9; ++j) {
-                if ((*this)(i, j) == 0)
+                if (_board[i][j] < 1 || _board[i][j] > 9) {
+                    v0 = _board[i][j];
                     goto pos_found;
+                }
             }
         }
+
+        if (solution)
+            *solution = *this;
 
         return 1; // all fields are occupied!
 
@@ -176,24 +191,24 @@ public:
 
         // try to set one number on that position
         for (int v = 1; v <= 9; ++ v) {
-            if (!set(v, i, j))
+            if (!assign(v, i, j))
                 // one of the rules is immediately broken by setting the current number. try
                 // another one
                 continue;
 
-            // one of the rules is broken for another field if the current field is set
-            // to v
-            if (isAnyDirectlyImpossible()) {
-                unset(v, i, j);
+            if (!scanPosition(i, j)) {
+                // one of the rules is broken for another field if the current field is
+                // set to v
+                unassign(v0, i, j);
                 continue;
             }
 
             // recusively check if the board is still solvable with the current number set
-            numFound += solve(nSolsCutoff);
+            numFound += solve(nSolsCutoff, solution);
             if (numFound >= nSolsCutoff)
                 return numFound;
 
-            unset(v, i, j);
+            unassign(v0, i, j);
         }
 
         return numFound;
@@ -213,7 +228,7 @@ private:
         }
     }
 
-    void _set(uint8_t num, uint8_t rowIdx, uint8_t colIdx)
+    void _assign(uint8_t num, uint8_t rowIdx, uint8_t colIdx)
     {
         if (num > 0 && num < 10) {
             int mask = 1 << (num - 1);
@@ -245,15 +260,15 @@ bool findChallenge(SudokuBoard& pattern)
     if (pattern.isAnyDirectlyImpossible())
         return false;
 
-    SudokuBoard tester(pattern);
+    SudokuBoard tester(pattern), sol;
     for (int rowIdx = 0; rowIdx < 9; ++rowIdx) {
         for (int colIdx = 0; colIdx < 9; colIdx++) {
             if (tester(rowIdx, colIdx) > 9)
-                tester.set(0, rowIdx, colIdx);
+                tester.assign(0, rowIdx, colIdx);
         }
     }
 
-    int minNumSol = tester.solve(2);
+    int minNumSol = tester.solve(/*nCutoff=*/2, &sol);
     if (minNumSol == 0)
         return false;
     else if (minNumSol == 1) {
@@ -262,7 +277,8 @@ bool findChallenge(SudokuBoard& pattern)
         for (int rowIdx = 0; rowIdx < 9; ++rowIdx) {
             for (int colIdx = 0; colIdx < 9; colIdx++) {
                 if (pattern(rowIdx, colIdx) > 9) {
-                    if (!pattern.set(tester(rowIdx, colIdx), rowIdx,colIdx)) {
+                    if (!pattern.assign(sol(rowIdx, colIdx), rowIdx,colIdx) ||
+                        !pattern.scanPosition(rowIdx, colIdx)) {
                         std::cerr << "Hm, something went wrong!\n";
                         std::abort();
                     }
@@ -280,10 +296,11 @@ bool findChallenge(SudokuBoard& pattern)
         for (int colIdx = 0; colIdx < 9; colIdx++) {
             if (pattern(rowIdx, colIdx) > 9) {
                 for (int shuffleIdx = 0; shuffleIdx < 9; ++ shuffleIdx) {
-                    if (pattern.set(shuffle[shuffleIdx] + 1, rowIdx, colIdx)) {
-                        if (findChallenge(pattern))
+                    if (pattern.assign(shuffle[shuffleIdx] + 1, rowIdx, colIdx)) {
+                        if (pattern.scanPosition(rowIdx, colIdx) &&
+                            findChallenge(pattern))
                             return true;
-                        pattern.unset(10, rowIdx, colIdx);
+                        pattern.unassign(10, rowIdx, colIdx);
                     }
                 }
                 // cannot chose a valid number for the wildcard at (rowIdx, colIdx)
@@ -404,7 +421,9 @@ int main()
     }
     return 0;
 #endif
-    int n = board.solve(nMax);
+
+    SudokuBoard sol;
+    int n = board.solve(nMax, &sol);
     if (n > 0) {
         if (n == 1)
             std::cout << "unique solution found:\n";
@@ -415,9 +434,8 @@ int main()
 
         std::cout << "original board:\n";
         origBoard.print();
-        board.solve(/*nMax=*/1);
-        std::cout << "first solution:\n";
-        board.print();
+        std::cout << "possible solution:\n";
+        sol.print();
     }
     else
         std::cout << "not solvable\n";
