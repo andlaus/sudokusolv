@@ -253,7 +253,7 @@ private:
 // create a random sequence containing all letters from 1 to 9
 std::array<std::array<uint8_t, 9>, 1000> shuffles;
 
-bool findChallenge(SudokuBoard& pattern)
+bool findChallenge(SudokuBoard& pattern, bool doPrint = true)
 {
     // first, ensure that the "fixed" part of the pattern represents a solvable board. if
     // it isn't there's not much point in specifying wild cards
@@ -285,7 +285,8 @@ bool findChallenge(SudokuBoard& pattern)
                 }
             }
         }
-        pattern.print();
+        if (doPrint)
+            pattern.print();
         return true;
     }
 
@@ -298,7 +299,7 @@ bool findChallenge(SudokuBoard& pattern)
                 for (int shuffleIdx = 0; shuffleIdx < 9; ++ shuffleIdx) {
                     if (pattern.assign(shuffle[shuffleIdx] + 1, rowIdx, colIdx)) {
                         if (pattern.scanPosition(rowIdx, colIdx) &&
-                            findChallenge(pattern))
+                            findChallenge(pattern, doPrint))
                             return true;
                         pattern.unassign(10, rowIdx, colIdx);
                     }
@@ -325,6 +326,7 @@ int main()
     }
 
 
+//#define BENCHMARK_NUM_REPETITIONS (1000)
 #define SEL 3
 #if SEL == 0
     // blank
@@ -372,6 +374,7 @@ int main()
             {4,0,0, 7,0,0, 8,6,1},
                        });
 #elif SEL == 3
+#define FIND_CHALLENGE_MODE 1
     // "buyacouch" challenge
     uint8_t x = 10;
     SudokuBoard board({
@@ -406,25 +409,40 @@ int main()
     #error "no initial board selected"
 #endif
 
-#if 1
+#ifdef FIND_CHALLENGE_MODE
+#ifdef BENCHMARK_NUM_REPETITIONS
+    std::cout << "find challenge benchmark: " << BENCHMARK_NUM_REPETITIONS << " repetitions\n";
     std::cout << "pattern:\n";
+    board.print();
+    auto origBoard = board;
+    for (int i = 0; i < BENCHMARK_NUM_REPETITIONS; ++i) {
+        board = origBoard;
+        findChallenge(board, /*doPrint=*/false);
+    }
+    return 0;
+#endif
+    std::cout << "finding challenge for pattern:\n";
     board.print();
     std::cout << "challenge with unique solution:\n";
     findChallenge(board);
 #else
-    const int nMax = 1000;
     auto origBoard = board;
-#if 0 // benchmark
-    for (int i = 0; i < 100000; ++i) {
+#ifdef BENCHMARK_NUM_REPETITIONS
+    std::cout << "solver benchmark: " << BENCHMARK_NUM_REPETITIONS << " repetitions\n";
+    for (int i = 0; i < BENCHMARK_NUM_REPETITIONS; ++i) {
         board = origBoard;
         board.solve();
     }
     return 0;
 #endif
 
+    const int nMax = 1000;
     SudokuBoard sol;
     int n = board.solve(nMax, &sol);
     if (n > 0) {
+        std::cout << "solving board:\n";
+        origBoard.print();
+
         if (n == 1)
             std::cout << "unique solution found:\n";
         else if (n < nMax)
@@ -432,8 +450,6 @@ int main()
         else
             std::cout << "At least " << n << " solutions found:\n";
 
-        std::cout << "original board:\n";
-        origBoard.print();
         std::cout << "possible solution:\n";
         sol.print();
     }
